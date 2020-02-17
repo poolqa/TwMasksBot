@@ -3,14 +3,17 @@ package main
 import (
 	"./api/bot/line"
 	"./api/bot/telegram"
-	"./config"
 	"./api/crawler"
+	"./config"
 	"./storage"
 	"./storage/maskStorage"
+	"encoding/csv"
 	"flag"
 	"github.com/jasonlvhit/gocron"
 	"github.com/poolqa/log"
+	"io/ioutil"
 	"os"
+	"strings"
 )
 
 var (
@@ -40,11 +43,16 @@ func main() {
 		os.Exit(0)
 	}
 
-	nhiMaskDataCrawler := crawler.NewNHICrawler("https://data.nhi.gov.tw/resource/mask/maskdata.csv", maskStorage.GMaskStorage)
-	cron := gocron.NewScheduler()
-	cron.Every(60).Seconds().Do(nhiMaskDataCrawler.Run)
-	cron.Start()
-	cron.RunAll()
+
+	if true {
+		nhiMaskDataCrawler := crawler.NewNHICrawler("https://data.nhi.gov.tw/resource/mask/maskdata.csv", maskStorage.GMaskStorage)
+		cron := gocron.NewScheduler()
+		cron.Every(60).Seconds().Do(nhiMaskDataCrawler.Run)
+		cron.Start()
+		cron.RunAll()
+	} else {
+		loadFileToDb()
+	}
 
 	if config.GConfig.Telegram.Enable {
 		tgBot, _ := telegram.NewTelegramBot(config.GConfig.Telegram, maskStorage.GMaskStorage)
@@ -58,36 +66,28 @@ func main() {
 
 }
 
-//func loadFileToDb() {
-//	fileName := "d:/drugstore-gps.csv"
-//	f, err := os.Open(fileName)
-//	if err != nil {
-//	}
-//	defer f.Close()
-//
-//	lineArr := []string{}
-//	br := bufio.NewReader(f)
-//	for {
-//		line, _, err := br.ReadLine()
-//		if err == io.EOF {
-//			break
-//		}
-//		lineArr = append(lineArr, string(line))
-//	}
-//
-//	sql := "INSERT INTO pharmacy (`code`,`name`,tel, addr, latitude, longitude) VALUES (?, ?, ?, ?, ?, ?) " +
-//		"ON duplicate KEY UPDATE tel=?, addr=? "
-//	dbSe := storage.GStorage.GetDB().NewSession()
-//
-//	for idx := 1; idx < len(lineArr); idx++ {
-//		line := lineArr[idx]
-//		row := strings.Split(line, ",")
-//		log.Infof("idx:%v, %+v", idx, row)
-//		_, err := dbSe.Execute(sql, row[0], row[1], row[2], row[3], row[5], row[6],
-//			row[2], row[3])
-//		if err != nil {
-//			log.Error("update pharmacy data error:", err)
-//			return
-//		}
-//	}
-//}
+func loadFileToDb() {
+	fileName := "d:/gps.csv"
+	f, err := ioutil.ReadFile(fileName)
+	if err != nil {
+		log.Errorf("err:%v", err)
+		return
+	}
+
+
+	br := csv.NewReader(strings.NewReader(string(f)))
+
+	csvData, _ := br.ReadAll()
+	csvLineSize := len(csvData)
+	se := storage.GStorage.GetDB().Engine.NewSession()
+	sql := "UPDATE pharmacy SET latitude = ?, longitude = ? WHERE `code` =? AND latitude = 0 AND longitude = 0 "
+	for idx := 1; idx < csvLineSize; idx++ {
+		row := csvData[idx]
+		log.Infof("idx:%v, %+v, %v, %v", idx, row[13], row[12], row[0])
+		_, err := se.Exec(sql, row[13], row[12], row[0])
+		if err != nil {
+			log.Error("update pharmacy data error:", err)
+			return
+		}
+	}
+}

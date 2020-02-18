@@ -18,7 +18,7 @@ type MysqlStore struct {
 
 func NewMysqlStore(conf *config.MysqlConfig) *MysqlStore {
 	link := conf.User + ":" + conf.Password + "@tcp(" + conf.Url + ")/" + conf.Database +
-		"?charset=" + conf.Charset + "&multiStatements=true"
+		"?charset=" + conf.Charset + "&multiStatements=true&parseTime=true&loc=Local"
 
 	engine, err := xorm.NewEngine("mysql", link)
 	if err != nil {

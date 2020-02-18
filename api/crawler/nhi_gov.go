@@ -3,6 +3,7 @@ package crawler
 import (
 	"../../storage/maskStorage"
 	"crypto/tls"
+	"encoding/csv"
 	"github.com/pkg/errors"
 	"github.com/poolqa/log"
 	"io/ioutil"
@@ -46,10 +47,13 @@ func (mCrawler *NHICrawler) Parse(csvData string) error {
 	// 醫事機構代碼,醫事機構名稱,醫事機構地址,醫事機構電話,成人口罩總剩餘數,兒童口罩剩餘數,來源資料時間
 	// 0           1          2           3          4              5            6
 	//log.Debug("csv:", csvData)
-	csvLines := strings.Split(csvData, "\n")
-	for idx := 1; idx < len(csvLines); idx++ {
-		line := csvLines[idx]
-		row := strings.Split(line, ",")
+	csvReader := csv.NewReader(strings.NewReader(csvData))
+
+	csvRows, _ := csvReader.ReadAll()
+	//csvLines := strings.Split(csvData, "\n")
+	for idx := 1; idx < len(csvRows); idx++ {
+		row := csvRows[idx]
+		//row := strings.Split(line, ",")
 		if len(row) < 7 {
 			continue
 		}
